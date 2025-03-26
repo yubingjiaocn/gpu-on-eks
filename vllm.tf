@@ -204,3 +204,19 @@ spec:
 
   depends_on = [kubectl_manifest.vllm_service]
 }
+
+# vLLM outputs
+output "vllm_model_storage_bucket" {
+  description = "S3 bucket for vLLM model storage"
+  value       = var.deploy_vllm ? aws_s3_bucket.model_storage[0].bucket : null
+}
+
+output "vllm_service_endpoint" {
+  description = "Endpoint for vLLM service"
+  value       = var.deploy_vllm ? "http://${kubectl_manifest.vllm_service[0].name}.${kubernetes_namespace.vllm[0].metadata[0].name}.svc.cluster.local:8000" : null
+}
+
+output "vllm_model_name" {
+  description = "Model name used for vLLM"
+  value       = var.deploy_vllm ? var.vllm_model_name : null
+}

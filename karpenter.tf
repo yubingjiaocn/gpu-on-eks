@@ -155,7 +155,7 @@ spec:
       ebs:
         volumeSize: 200Gi
         volumeType: gp3
-        iops: 4000
+        iops: 6000
         throughput: 1000
         deleteOnTermination: true
   YAML
@@ -171,6 +171,10 @@ metadata:
   name: gpu
 spec:
   template:
+    metadata:
+      labels:
+        launch-type: karpenter
+        node-class: gpu
     spec:
       nodeClassRef:
         group: karpenter.k8s.aws
@@ -217,6 +221,14 @@ spec:
         karpenter.sh/discovery: ${local.name}
   tags:
     karpenter.sh/discovery: ${local.name}
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 150Gi
+        volumeType: gp3
+        iops: 6000
+        throughput: 1000
+        deleteOnTermination: true
   YAML
 
   depends_on = [helm_release.karpenter]
@@ -230,6 +242,10 @@ metadata:
   name: cpu
 spec:
   template:
+    metadata:
+      labels:
+        launch-type: karpenter
+        node-class: cpu
     spec:
       nodeClassRef:
         group: karpenter.k8s.aws

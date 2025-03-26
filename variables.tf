@@ -16,6 +16,12 @@ variable "cluster_version" {
   default     = "1.31"
 }
 
+variable "enable_ebs_tuner" {
+  description = "Whether to enable the EBS throughput tuner"
+  type        = bool
+  default     = true
+}
+
 variable "ebs_throughput" {
   description = "EBS volume throughput in MB/s for gp3 volumes"
   type        = number
@@ -55,13 +61,13 @@ variable "vllm_image" {
 
 # Observability Variables
 variable "enable_observability" {
-  description = "Whether to enable observability components (AMP, DCGM Exporter)"
+  description = "Whether to enable observability components (kube-prometheus, DCGM Exporter)"
   type        = bool
-  default     = false
+  default     = true
 }
 
-variable "deploy_grafana" {
-  description = "Whether to deploy Amazon Managed Grafana for visualization"
+variable "enable_kuberay_operator" {
+  description = "Whether to enable KubeRay Operator"
   type        = bool
   default     = true
 }

@@ -52,7 +52,7 @@ resource "aws_eks_pod_identity_association" "prometheus" {
 
 # Generate random password for Grafana admin
 resource "random_password" "grafana_password" {
-  count   = var.enable_observability && var.deploy_grafana ? 1 : 0
+  count   = var.enable_observability ? 1 : 0
   length  = 16
   special = false
 
@@ -93,15 +93,7 @@ resource "helm_release" "kube_prometheus_stack" {
     grafana:
       adminUser: admin
       adminPassword: ${random_password.grafana_password[0].result}
-
-      ingress:
-        enabled: true
-        ingressClassName: alb
-        annotations:
-          alb.ingress.kubernetes.io/scheme: internal
-          alb.ingress.kubernetes.io/target-type: ip
-          alb.ingress.kubernetes.io/group.name: grafana
-          alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+      defaultDashboardsEnabled: true
 
       persistence:
         enabled: true
@@ -127,12 +119,16 @@ resource "helm_release" "kube_prometheus_stack" {
             gnetId: 12239
             revision: 2
             datasource: Prometheus
+
+    alertmanager:
+      enabled: false
     EOT
   ]
 
   depends_on = [
     kubernetes_namespace.monitoring,
-    aws_eks_pod_identity_association.prometheus
+    aws_eks_pod_identity_association.prometheus,
+    kubernetes_storage_class.ebs_storage_class
   ]
 }
 
@@ -187,27 +183,22 @@ resource "helm_release" "dcgm_exporter" {
 # Output the Grafana credentials and URL
 output "grafana_admin_username" {
   description = "Grafana admin username"
-  value       = var.enable_observability && var.deploy_grafana ? "admin" : null
+  value       = var.enable_observability ? "admin" : null
   sensitive   = false
 }
 
 output "grafana_admin_password" {
   description = "Grafana admin password"
-  value       = var.enable_observability && var.deploy_grafana ? random_password.grafana_password[0].result : null
-  sensitive   = true
+  value       = var.enable_observability ? random_password.grafana_password[0].result : null
+  sensitive = true
 }
 
 output "grafana_url" {
-  description = "URL to access Grafana (use kubectl to get the ingress address)"
-  value       = var.enable_observability && var.deploy_grafana ? "http://<ALB_ADDRESS> (Get ALB address with: kubectl get ingress -n monitoring kube-prometheus-stack-grafana)" : null
+  description = "URL to access Grafana (via kubectl port-forward)"
+  value       = var.enable_observability ? "Run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 80:80" : null
 }
 
 output "prometheus_url" {
   description = "URL to access Prometheus (via kubectl port-forward)"
   value       = var.enable_observability ? "Run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090" : null
-}
-
-output "alertmanager_url" {
-  description = "URL to access Alertmanager (via kubectl port-forward)"
-  value       = var.enable_observability ? "Run: kubectl port-forward -n monitoring svc/kube-prometheus-stack-alertmanager 9093:9093" : null
 }

@@ -257,96 +257,52 @@ module "vpc" {
 }
 
 ################################################################################
-# AWS Load Balancer Controller with EKS Pod Identity
+# AWS Load Balancer Controller
 ################################################################################
 
-# Create IAM role for Load Balancer Controller
-resource "aws_iam_role" "lb_controller_role" {
-  name = "${local.name}-lb-controller-role"
+module "eks_blueprints_addons" {
+  source = "aws-ia/eks-blueprints-addons/aws"
+  version = "~> 1.0" #ensure to update this to the latest/desired version
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "pods.eks.amazonaws.com"
-        }
-        Action = [
-          "sts:AssumeRole",
-          "sts:TagSession"
-        ]
-      }
-    ]
-  })
+  cluster_name      = module.eks.cluster_name
+  cluster_endpoint  = module.eks.cluster_endpoint
+  cluster_version   = module.eks.cluster_version
+  oidc_provider_arn = module.eks.oidc_provider_arn
 
-  tags = local.tags
+  enable_aws_load_balancer_controller    = true
+  enable_metrics_server                  = true
 }
 
-# Create EKS Pod Identity Association for Load Balancer Controller
-resource "aws_eks_pod_identity_association" "lb_controller" {
-  cluster_name    = module.eks.cluster_name
-  namespace       = "kube-system"
-  service_account = "aws-load-balancer-controller"
-  role_arn        = aws_iam_role.lb_controller_role.arn
+resource "kubernetes_annotations" "disable_gp2" {
+  annotations = {
+    "storageclass.kubernetes.io/is-default-class" : "false"
+  }
+  api_version = "storage.k8s.io/v1"
+  kind        = "StorageClass"
+  metadata {
+    name = "gp2"
+  }
+  force = true
+
+  depends_on = [module.eks.eks_cluster_id]
 }
 
-# Attach Load Balancer Controller policy to the role
-resource "aws_iam_policy" "lb_controller_policy" {
-  name        = "${local.name}-lb-controller-policy"
-  description = "Policy for AWS Load Balancer Controller"
+resource "kubernetes_storage_class" "ebs_storage_class" {
+  metadata {
+    name = "ebs-sc"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" : "true"
+    }
+  }
 
-  policy = data.http.lb_controller_policy.response_body
+  storage_provisioner    = "ebs.csi.aws.com"
+  reclaim_policy         = "Delete"
+  allow_volume_expansion = true
+  volume_binding_mode    = "WaitForFirstConsumer"
+  parameters = {
+    fsType    = "ext4"
+    type      = "gp3"
+  }
 
-  tags = local.tags
-}
-
-data "http" "lb_controller_policy" {
-  url = "https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json"
-}
-
-resource "aws_iam_role_policy_attachment" "lb_controller_policy_attachment" {
-  role       = aws_iam_role.lb_controller_role.name
-  policy_arn = aws_iam_policy.lb_controller_policy.arn
-}
-
-module "aws_load_balancer_controller" {
-  source  = "aws-ia/eks-blueprints-addon/aws"
-  version = "~> 1.1"
-
-  name = "aws-load-balancer-controller"
-
-  chart = "aws-load-balancer-controller"
-  chart_version = "1.12.0"  # Latest chart version
-  repository    = "https://aws.github.io/eks-charts"
-  namespace     = "kube-system"
-
-  values = [
-    yamlencode({
-      clusterName = module.eks.cluster_name
-      serviceAccount = {
-        create = true
-        name   = "aws-load-balancer-controller"
-      }
-    })
-  ]
-
-  depends_on = [module.eks, aws_eks_pod_identity_association.lb_controller]
-}
-
-resource "kubectl_manifest" "ebs_storage_class" {
-  yaml_body = <<-YAML
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: ebs-sc
-provisioner: ebs.csi.aws.com
-volumeBindingMode: WaitForFirstConsumer
-parameters:
-  type: gp3
-reclaimPolicy: Delete
-allowVolumeExpansion: true
-YAML
-
-  depends_on = [module.eks]
+  depends_on = [kubernetes_annotations.disable_gp2]
 }
