@@ -1,4 +1,3 @@
-
 ################################################################################
 # EBS Throughput Tuner using Lambda and Step Functions modules
 ################################################################################
@@ -6,6 +5,8 @@
 module "lambda_function" {
   source  = "terraform-aws-modules/lambda/aws"
   version = "~> 7.20"
+
+  count = var.enable_ebs_tuner ? 1 : 0
 
   function_name = "EbsThroughputTunerLambda"
   description   = "Lambda function to tune EBS volume throughput and IOPS"
@@ -38,6 +39,8 @@ module "step_function" {
   source  = "terraform-aws-modules/step-functions/aws"
   version = "~> 4.1"
 
+  count = var.enable_ebs_tuner ? 1 : 0
+
   name       = "EbsThroughputTunerStateMachine"
   definition = jsonencode({
     Comment = "EBS Throughput Tuner State Machine"
@@ -52,7 +55,7 @@ module "step_function" {
         Type     = "Task"
         Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = module.lambda_function.lambda_function_arn
+          FunctionName = module.lambda_function[0].lambda_function_arn
           "Payload.$": "$"
         }
         Retry = [
@@ -70,7 +73,7 @@ module "step_function" {
 
   service_integrations = {
     lambda = {
-      lambda = [module.lambda_function.lambda_function_arn]
+      lambda = [module.lambda_function[0].lambda_function_arn]
     }
   }
 
@@ -83,11 +86,13 @@ module "eventbridge" {
   source  = "terraform-aws-modules/eventbridge/aws"
   version = "~> 3.14"
 
+  count = var.enable_ebs_tuner ? 1 : 0
+
   create_bus = false
   role_name  = "${local.name}-eventbridge-role"  # Use a unique name instead of "default"
   attach_sfn_policy = true
   sfn_target_arns   = [
-    module.step_function.state_machine_arn
+    module.step_function[0].state_machine_arn
   ]
 
   rules = {
@@ -107,7 +112,7 @@ module "eventbridge" {
     ebs_tuner = [
       {
         name            = "trigger-ebs-tuner"
-        arn             = module.step_function.state_machine_arn
+        arn             = module.step_function[0].state_machine_arn
         attach_role_arn = true
       }
     ]

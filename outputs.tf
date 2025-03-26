@@ -32,30 +32,3 @@ output "karpenter_node_iam_role_arn" {
   description = "IAM Role ARN for Karpenter nodes"
   value       = module.karpenter.iam_role_arn
 }
-
-
-output "lambda_function_name" {
-  description = "Name of the EBS throughput tuner Lambda function"
-  value       = module.lambda_function.lambda_function_name
-}
-
-output "step_function_arn" {
-  description = "ARN of the EBS throughput tuner Step Function"
-  value       = module.step_function.state_machine_arn
-}
-
-# vLLM outputs
-output "vllm_model_storage_bucket" {
-  description = "S3 bucket for vLLM model storage"
-  value       = var.deploy_vllm ? aws_s3_bucket.model_storage[0].bucket : null
-}
-
-output "vllm_service_endpoint" {
-  description = "Endpoint for vLLM service"
-  value       = var.deploy_vllm ? "http://${kubectl_manifest.vllm_service[0].name}.${kubernetes_namespace.vllm[0].metadata[0].name}.svc.cluster.local:8000" : null
-}
-
-output "vllm_model_name" {
-  description = "Model name used for vLLM"
-  value       = var.deploy_vllm ? var.vllm_model_name : null
-}
