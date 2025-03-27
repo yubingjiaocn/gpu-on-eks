@@ -69,5 +69,11 @@ variable "enable_observability" {
 variable "enable_kuberay_operator" {
   description = "Whether to enable KubeRay Operator"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "enable_neuron" {
+  description = "Whether to enable Neuron (Inf2 node pools, neuron device plugin)"
+  type        = bool
+  default     = false
 }
