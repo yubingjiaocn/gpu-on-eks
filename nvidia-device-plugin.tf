@@ -7,7 +7,7 @@ resource "helm_release" "nvidia_device_plugin" {
   repository = "https://nvidia.github.io/k8s-device-plugin"
   chart      = "nvidia-device-plugin"
   namespace  = "kube-system"
-  version    = "0.17.1"  # Latest version
+  version    = "0.17.3"  # Latest version
 
   set {
     name  = "tolerations[0].key"

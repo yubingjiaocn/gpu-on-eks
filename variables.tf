@@ -13,7 +13,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "Kubernetes version to use for the EKS cluster"
   type        = string
-  default     = "1.31"
+  default     = "1.33"
 }
 
 variable "enable_ebs_tuner" {
@@ -63,7 +63,7 @@ variable "vllm_image" {
 variable "enable_observability" {
   description = "Whether to enable observability components (kube-prometheus, DCGM Exporter)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_kuberay_operator" {

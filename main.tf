@@ -153,12 +153,15 @@ resource "aws_iam_role_policy_attachment" "s3_csi_policy" {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.34"
+  version = "~> 21.0"
 
-  cluster_name                   = local.name
-  cluster_version                = local.cluster_version
-  cluster_endpoint_public_access = true
+  name                              = local.name
+  kubernetes_version                = local.cluster_version
+  endpoint_public_access = true
   enable_cluster_creator_admin_permissions = true
+#  create_kms_key = false
+#  attach_encryption_policy = false
+
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -180,7 +183,7 @@ module "eks" {
   }
 
   # Enable EKS Add-ons with Pod Identity
-  cluster_addons = {
+  addons = {
     aws-ebs-csi-driver = {
       most_recent = true
       pod_identity_association = [{
@@ -194,10 +197,12 @@ module "eks" {
     }
     kube-proxy = {
       most_recent = true
+      before_compute = true
       # kube-proxy doesn't require IAM permissions
     }
     vpc-cni = {
       most_recent = true
+      before_compute = true
       pod_identity_association = [{
         role_arn = aws_iam_role.vpc_cni_role.arn
         service_account = "aws-node"
@@ -219,6 +224,12 @@ module "eks" {
           tolerateAllTaints = true
         }
       })
+    }
+    metrics-server = {
+      most_recent = true
+    }
+    cert-manager = {
+      most_recent = true
     }
   }
 
@@ -254,23 +265,6 @@ module "vpc" {
   }
 
   tags = local.tags
-}
-
-################################################################################
-# AWS Load Balancer Controller
-################################################################################
-
-module "eks_blueprints_addons" {
-  source = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.0" #ensure to update this to the latest/desired version
-
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  cluster_version   = module.eks.cluster_version
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  enable_aws_load_balancer_controller    = true
-  enable_metrics_server                  = true
 }
 
 resource "kubernetes_annotations" "disable_gp2" {

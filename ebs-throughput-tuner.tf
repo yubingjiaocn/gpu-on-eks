@@ -4,7 +4,7 @@
 
 module "lambda_function" {
   source  = "terraform-aws-modules/lambda/aws"
-  version = "~> 7.20"
+  version = "~> 8.0.1"
 
   count = var.enable_ebs_tuner ? 1 : 0
 

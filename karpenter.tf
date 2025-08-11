@@ -5,16 +5,14 @@
 
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "~> 20.34"
+  version = "~> 21.0.8"
 
   cluster_name = module.eks.cluster_name
   create_pod_identity_association = true
-  enable_v1_permissions = true
 
   # Used to attach additional IAM policies to the Karpenter node IAM role
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-    AmazonS3FullAccess = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
   }
 
   tags = local.tags
@@ -27,7 +25,7 @@ resource "helm_release" "karpenter" {
   name       = "karpenter"
   repository = "oci://public.ecr.aws/karpenter"
   chart      = "karpenter"
-  version    = "1.3.3"  # Latest version
+  version    = "1.6.0"  # Latest version
 
   set {
     name  = "settings.clusterName"
