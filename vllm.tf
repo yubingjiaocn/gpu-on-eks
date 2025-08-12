@@ -112,7 +112,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: 100Gi
+      storage: 1000Gi
   volumeName: vllm-pv
   storageClassName: ""
   YAML
@@ -224,7 +224,6 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 spec:
-  type: LoadBalancer
   ingressClassName: alb
   rules:
   - http:
