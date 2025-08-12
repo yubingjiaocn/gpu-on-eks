@@ -159,8 +159,8 @@ module "eks" {
   kubernetes_version                = local.cluster_version
   endpoint_public_access = true
   enable_cluster_creator_admin_permissions = true
-#  create_kms_key = false
-#  attach_encryption_policy = false
+  create_kms_key = false
+  attach_encryption_policy = false
 
 
   vpc_id     = module.vpc.vpc_id
@@ -179,6 +179,9 @@ module "eks" {
       desired_size = 2
 
       tags = local.tags
+      metadata_options = {
+        http_put_response_hop_limit = 2
+      }
     }
   }
 

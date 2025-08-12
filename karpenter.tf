@@ -148,6 +148,11 @@ spec:
         karpenter.sh/discovery: ${local.name}
   tags:
     karpenter.sh/discovery: ${local.name}
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required        
   blockDeviceMappings:
     - deviceName: /dev/xvdb
       ebs:
@@ -219,6 +224,11 @@ spec:
         karpenter.sh/discovery: ${local.name}
   tags:
     karpenter.sh/discovery: ${local.name}
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required    
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:
