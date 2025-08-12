@@ -1,5 +1,5 @@
 ################################################################################
-# vLLM Deployment with Mountpoint for S3
+# vLLM Deployment with EFS
 ################################################################################
 
 resource "kubernetes_namespace" "vllm" {
@@ -12,14 +12,53 @@ resource "kubernetes_namespace" "vllm" {
   depends_on = [module.eks]
 }
 
-# Create S3 bucket for model storage
-resource "aws_s3_bucket" "model_storage" {
+# Create EFS file system for model storage
+resource "aws_efs_file_system" "model_storage" {
   count = var.deploy_vllm ? 1 : 0
 
-  bucket = "${var.cluster_name}-model-storage"
-  force_destroy = true
+  creation_token = "${var.cluster_name}-model-storage"
+  performance_mode = "generalPurpose"
+  throughput_mode = "elastic"
 
-  tags = local.tags
+  tags = merge(local.tags, {
+    Name = "${var.cluster_name}-model-storage"
+  })
+}
+
+# Create EFS mount targets in each subnet
+resource "aws_efs_mount_target" "model_storage" {
+  count = var.deploy_vllm ? length(module.vpc.private_subnets) : 0
+
+  file_system_id  = aws_efs_file_system.model_storage[0].id
+  subnet_id       = module.vpc.private_subnets[count.index]
+  security_groups = [aws_security_group.efs[0].id]
+}
+
+# Create security group for EFS
+resource "aws_security_group" "efs" {
+  count = var.deploy_vllm ? 1 : 0
+
+  name        = "${var.cluster_name}-efs-sg"
+  description = "Security group for EFS"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.tags, {
+    Name = "${var.cluster_name}-efs-sg"
+  })
 }
 
 # Create ServiceAccount for vLLM
@@ -35,7 +74,7 @@ resource "kubernetes_service_account" "vllm_sa" {
   depends_on = [kubernetes_namespace.vllm]
 }
 
-# Create PV for vLLM
+# Create PV for vLLM using EFS
 resource "kubectl_manifest" "vllm_pv" {
   count = var.deploy_vllm ? 1 : 0
 
@@ -44,22 +83,18 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: vllm-pv
-  namespace: ${kubernetes_namespace.vllm[0].metadata[0].name}
 spec:
   capacity:
-    storage: 100Gi
+    storage: 1000Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   csi:
-    driver: s3.csi.aws.com
-    volumeHandle: vllm-pv
-    volumeAttributes:
-      bucketName: ${var.cluster_name}-model-storage
-      mountOptions: "--allow-delete --allow-other --allow-overwrite --file-mode 777 --dir-mode 777 --incremental-upload"
+    driver: efs.csi.aws.com
+    volumeHandle: ${aws_efs_file_system.model_storage[0].id}
   YAML
 
-  depends_on = [kubernetes_namespace.vllm, aws_s3_bucket.model_storage]
+  depends_on = [kubernetes_namespace.vllm, aws_efs_file_system.model_storage, aws_efs_mount_target.model_storage]
 }
 
 # Create PVC for vLLM
@@ -186,10 +221,11 @@ metadata:
   name: vllm-ingress
   namespace: ${kubernetes_namespace.vllm[0].metadata[0].name}
   annotations:
-    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 spec:
+  type: LoadBalancer
+  ingressClassName: alb
   rules:
   - http:
       paths:
@@ -206,13 +242,13 @@ spec:
 }
 
 # vLLM outputs
-output "vllm_model_storage_bucket" {
-  description = "S3 bucket for vLLM model storage"
-  value       = var.deploy_vllm ? aws_s3_bucket.model_storage[0].bucket : null
+output "vllm_model_storage_efs_id" {
+  description = "EFS file system ID for vLLM model storage"
+  value       = var.deploy_vllm ? aws_efs_file_system.model_storage[0].id : null
 }
 
 output "vllm_service_endpoint" {
-  description = "Endpoint for vLLM service"
+  description = "Internal Endpoint for vLLM service"
   value       = var.deploy_vllm ? "http://${kubectl_manifest.vllm_service[0].name}.${kubernetes_namespace.vllm[0].metadata[0].name}.svc.cluster.local:8000" : null
 }
 

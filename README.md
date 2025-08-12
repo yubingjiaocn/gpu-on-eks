@@ -6,7 +6,7 @@ This Terraform project sets up an Amazon EKS cluster with GPU support and severa
 2. AWS Load Balancer Controller
 3. Karpenter with CPU and GPU node pools
 4. EBS Throughput Tuner for optimizing EBS volume performance
-5. Optional vLLM deployment using Mountpoint for S3 for model storage
+5. Optional vLLM deployment using EFS for model storage
 6. Optional observability stack with Prometheus, DCGM Exporter, and Grafana
 7. NVIDIA Device Plugin for Kubernetes
 
@@ -18,7 +18,7 @@ This Terraform project sets up an Amazon EKS cluster with GPU support and severa
   - CPU Node Pool: Uses c/m/r instance types (AMD64) for general workloads
   - GPU Node Pool: Uses g6e instances for GPU workloads
 - **EBS Throughput Tuner**: Automatically optimizes EBS volume performance for EC2 instances
-- **vLLM Deployment**: Optional deployment of vLLM inference server using GPU nodes and S3 for model storage
+- **vLLM Deployment**: Optional deployment of vLLM inference server using GPU nodes and EFS for model storage
 - **Observability Stack**: Optional monitoring with Prometheus, DCGM Exporter for GPU metrics, and Grafana
 - **NVIDIA Device Plugin**: Enables GPU support in Kubernetes with GPU Feature Discovery
 
